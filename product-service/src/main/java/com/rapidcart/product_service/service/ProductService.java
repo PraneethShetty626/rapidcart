@@ -17,13 +17,13 @@ import java.util.stream.Collectors;
 
 /**
  * Service layer responsible for managing {@link Product} entities.
- * <p>
- * This class provides transactional methods for creating, retrieving,
- * updating, and logically deleting (disabling) products.
- * </p>
- * <p>
- * All methods are transactional to ensure data consistency.
- * </p>
+ *
+ * <p>This class encapsulates business logic related to product management —
+ * including creation, retrieval, updating, logical deletion (soft delete),
+ * and stock management operations.</p>
+ *
+ * <p>All methods are transactional to ensure data consistency and rollback
+ * behavior in case of runtime exceptions.</p>
  */
 @Service
 @Transactional
@@ -34,13 +34,12 @@ public class ProductService {
 
     /**
      * Creates and saves a new product in the database.
-     * <p>
-     * Validates the incoming {@link ProductRequestDto}, maps it to a {@link Product} entity,
-     * and persists it using {@link ProductRepository}.
-     * </p>
      *
-     * @param productRequestDto the incoming product data from the API request
-     * @return the saved product represented as a {@link ProductResponseDto}
+     * <p>Converts the incoming {@link ProductRequestDto} into a {@link Product} entity,
+     * persists it, and then maps the saved entity back to a {@link ProductResponseDto}.</p>
+     *
+     * @param productRequestDto the product details provided in the request
+     * @return the created product as a {@link ProductResponseDto}
      */
     public ProductResponseDto createProduct(@Valid ProductRequestDto productRequestDto) {
         Product product = mapToEntity(productRequestDto);
@@ -49,10 +48,10 @@ public class ProductService {
     }
 
     /**
-     * Retrieves a paginated and optionally sorted list of products.
+     * Retrieves a paginated and sorted list of all products.
      *
-     * @param pageable pagination and sorting parameters (page number, size, sort direction)
-     * @return a list of {@link ProductResponseDto} objects representing the requested page of products
+     * @param pageable contains pagination and sorting parameters
+     * @return a list of {@link ProductResponseDto} for the requested page
      */
     public List<ProductResponseDto> getAllProducts(Pageable pageable) {
         Page<Product> productsPage = productRepository.findAll(pageable);
@@ -62,11 +61,11 @@ public class ProductService {
     }
 
     /**
-     * Retrieves a product by its unique identifier.
+     * Fetches a single product by its unique ID.
      *
-     * @param id the ID of the product to fetch
-     * @return a {@link ProductResponseDto} containing the product details
-     * @throws ResourceNotFoundException if no product exists with the given ID
+     * @param id the product ID
+     * @return the corresponding {@link ProductResponseDto}
+     * @throws ResourceNotFoundException if no product exists with the specified ID
      */
     public ProductResponseDto getProductById(Long id) {
         Product product = productRepository.findById(id)
@@ -75,15 +74,13 @@ public class ProductService {
     }
 
     /**
-     * Updates an existing product identified by its ID.
-     * <p>
-     * If the product does not exist, a {@link ResourceNotFoundException} is thrown.
-     * </p>
+     * Updates an existing product’s details.
      *
-     * @param id                 the ID of the product to update
-     * @param productRequestDto  the updated product data
-     * @return the updated product represented as a {@link ProductResponseDto}
-     * @throws ResourceNotFoundException if no product exists with the given ID
+     * <p>If the product does not exist, throws {@link ResourceNotFoundException}.</p>
+     *
+     * @param id the ID of the product to update
+     * @param productRequestDto the updated product data
+     * @return the updated product as a {@link ProductResponseDto}
      */
     public ProductResponseDto updateProduct(Long id, @Valid ProductRequestDto productRequestDto) {
         Product existingProduct = productRepository.findById(id)
@@ -100,14 +97,12 @@ public class ProductService {
     }
 
     /**
-     * Logically deletes (disables) a product by its ID instead of physically removing it.
-     * <p>
-     * This is useful when product records are linked to other entities (e.g., orders)
-     * and cannot be safely deleted without violating constraints.
-     * </p>
+     * Soft deletes (disables) a product instead of physically removing it.
      *
-     * @param id the ID of the product to deactivate
-     * @throws ResourceNotFoundException if no product exists with the given ID
+     * <p>This approach maintains referential integrity with other entities like orders.</p>
+     *
+     * @param id the product ID
+     * @throws ResourceNotFoundException if the product is not found
      */
     public void deleteProduct(Long id) {
         Product existingProduct = productRepository.findById(id)
@@ -118,14 +113,46 @@ public class ProductService {
     }
 
     /**
-     * Maps a {@link ProductRequestDto} to a {@link Product} entity.
-     * <p>
-     * This method prepares the entity for persistence, ensuring that
-     * default values (like active status) are properly set.
-     * </p>
+     * Checks whether a product has sufficient stock for the requested quantity.
      *
-     * @param dto the DTO containing product data from the client
-     * @return a mapped {@link Product} entity
+     * @param id the product ID
+     * @param quantity the required quantity
+     * @return true if sufficient stock is available, false otherwise
+     */
+    public boolean hasStock(Long id, Integer quantity) {
+        return productRepository.findById(id)
+                .map(product -> product.getStock() >= quantity)
+                .orElse(false);
+    }
+
+    /**
+     * Reduces the stock of a product after an order is confirmed.
+     *
+     * <p>Throws {@link ResourceNotFoundException} if the product does not exist.
+     * Returns false if insufficient stock is available.</p>
+     *
+     * @param id the product ID
+     * @param quantity the quantity to deduct
+     * @return true if stock was successfully reduced, false otherwise
+     */
+    public boolean reduceStock(Long id, Integer quantity) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+
+        if (product.getStock() < quantity) {
+            return false;
+        }
+
+        product.setStock(product.getStock() - quantity);
+        productRepository.save(product);
+        return true;
+    }
+
+    /**
+     * Converts a {@link ProductRequestDto} to a {@link Product} entity.
+     *
+     * @param dto the DTO containing product details
+     * @return a mapped {@link Product} entity ready for persistence
      */
     private Product mapToEntity(ProductRequestDto dto) {
         return Product.builder()
@@ -138,13 +165,10 @@ public class ProductService {
     }
 
     /**
-     * Maps a {@link Product} entity to a {@link ProductResponseDto}.
-     * <p>
-     * Used to transform entity objects into a format suitable for API responses.
-     * </p>
+     * Converts a {@link Product} entity into a {@link ProductResponseDto}.
      *
-     * @param product the entity object to map
-     * @return the corresponding {@link ProductResponseDto}
+     * @param product the entity to convert
+     * @return the corresponding response DTO
      */
     private ProductResponseDto mapToResponseDto(Product product) {
         return ProductResponseDto.builder()

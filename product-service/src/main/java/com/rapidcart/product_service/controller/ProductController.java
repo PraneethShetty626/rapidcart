@@ -5,42 +5,33 @@ import com.rapidcart.product_service.dto.ProductResponseDto;
 import com.rapidcart.product_service.service.ProductService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.*;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * REST controller for managing products in the RapidCart system.
+ * REST controller for managing products within the RapidCart platform.
  *
- * <p>This controller exposes endpoints for creating and retrieving products.
- * It supports pagination, sorting, and request validation to ensure consistent and
- * efficient API behavior.</p>
+ * <p>This controller provides CRUD endpoints for managing products, along with
+ * internal APIs for stock verification and stock reduction during order processing.</p>
  *
- * <p>Base URL: <b>/api/products</b></p>
+ * <p><b>Base URL:</b> {@code /api/products}</p>
  *
- * <p>Endpoints:</p>
+ * <h3>Supported Endpoints</h3>
  * <ul>
- *   <li><b>POST /api/products</b> - Create a new product</li>
- *   <li><b>GET /api/products</b> - Retrieve all products with pagination and sorting</li>
+ *   <li><b>POST</b> /api/products → Create a new product</li>
+ *   <li><b>GET</b> /api/products → Retrieve paginated list of products</li>
+ *   <li><b>GET</b> /api/products/{id} → Fetch a product by ID</li>
+ *   <li><b>PUT</b> /api/products/{id} → Update product details</li>
+ *   <li><b>DELETE</b> /api/products/{id} → Soft delete (deactivate) a product</li>
+ *   <li><b>GET</b> /api/products/{id}/stock → Check stock availability (for Order Service)</li>
+ *   <li><b>PUT</b> /api/products/{id}/reduce-stock → Reduce stock after confirmed order</li>
  * </ul>
- *
- * <p>Example usage:</p>
- * <pre>
- *     POST /api/products
- *     {
- *         "name": "Smartphone",
- *         "price": 499.99,
- *         "description": "Latest model with advanced features"
- *     }
- *
- *     GET /api/products?page=0&size=10&sortBy=name&sortDir=asc
- * </pre>
  */
 @RestController
 @RequestMapping("/api/products")
@@ -50,10 +41,10 @@ public class ProductController {
     private ProductService productService;
 
     /**
-     * Creates a new product in the system.
+     * Creates a new product record.
      *
-     * @param productRequestDto the request payload containing product details
-     * @return a {@link ResponseEntity} containing the created product details and HTTP 201 (Created) status
+     * @param productRequestDto contains product details such as name, SKU, price, and stock
+     * @return a {@link ResponseEntity} containing the created product and HTTP 201 (Created)
      */
     @PostMapping
     public ResponseEntity<ProductResponseDto> createProduct(
@@ -64,13 +55,13 @@ public class ProductController {
     }
 
     /**
-     * Retrieves all products with pagination and sorting support.
+     * Retrieves a paginated and optionally sorted list of products.
      *
-     * @param page    the page number (zero-based index, default = 0)
-     * @param size    the number of records per page (default = 10)
+     * @param page    the page number (0-based, default = 0)
+     * @param size    the page size (default = 10)
      * @param sortBy  the field name to sort by (default = "id")
-     * @param sortDir the sort direction, either "asc" or "desc" (default = "asc")
-     * @return a {@link ResponseEntity} containing a list of {@link ProductResponseDto}
+     * @param sortDir the sort direction ("asc" or "desc", default = "asc")
+     * @return a {@link ResponseEntity} containing a list of {@link ProductResponseDto} and HTTP 200 (OK)
      */
     @GetMapping
     public ResponseEntity<List<ProductResponseDto>> getAllProducts(
@@ -79,26 +70,18 @@ public class ProductController {
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
 
-        Sort sort = Sort.by(sortBy);
-        if (sortDir.equalsIgnoreCase("desc")) {
-            sort = sort.descending();
-        }
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
-        Pageable pageable = PageRequest.of(page, size, sort);
         List<ProductResponseDto> products = productService.getAllProducts(pageable);
-
         return ResponseEntity.ok(products);
     }
 
     /**
-     * Retrieves a specific product by its unique identifier.
+     * Fetches a single product by its unique identifier.
      *
-     * <p>This endpoint fetches product details for the provided {@code id}.
-     * If the product does not exist, a {@link com.rapidcart.product_service.exception.ResourceNotFoundException}
-     * is thrown and handled globally.</p>
-     *
-     * @param id the unique identifier of the product
-     * @return a {@link ResponseEntity} containing the {@link ProductResponseDto} and HTTP 200 (OK) status
+     * @param id the product ID
+     * @return a {@link ResponseEntity} containing the product details and HTTP 200 (OK)
      */
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponseDto> getProductById(@PathVariable Long id) {
@@ -106,15 +89,11 @@ public class ProductController {
     }
 
     /**
-     * Updates the details of an existing product.
+     * Updates product details for an existing record.
      *
-     * <p>This endpoint updates an existing product identified by {@code id} with the provided
-     * {@link ProductRequestDto} data. Validation is applied to ensure request integrity.
-     * If the product does not exist, a {@link com.rapidcart.product_service.exception.ResourceNotFoundException} is thrown.</p>
-     *
-     * @param id the unique identifier of the product to update
+     * @param id the ID of the product to update
      * @param productRequestDto the updated product data
-     * @return a {@link ResponseEntity} containing the updated {@link ProductResponseDto} and HTTP 200 (OK) status
+     * @return a {@link ResponseEntity} containing the updated {@link ProductResponseDto} and HTTP 200 (OK)
      */
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDto> updateProduct(
@@ -126,14 +105,12 @@ public class ProductController {
     }
 
     /**
-     * Deletes (deactivates) a product by its unique identifier.
+     * Performs a soft delete by marking a product as inactive instead of removing it from the database.
      *
-     * <p>This endpoint performs a soft delete by marking the product as inactive
-     * instead of removing it from the database. This approach helps maintain data integrity
-     * for orders or references linked to the product.</p>
+     * <p>This ensures referential integrity with existing orders or related entities.</p>
      *
-     * @param id the unique identifier of the product to delete
-     * @return a {@link ResponseEntity} with HTTP 204 (No Content) status upon successful deactivation
+     * @param id the product ID to deactivate
+     * @return a {@link ResponseEntity} with HTTP 204 (No Content)
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
@@ -141,4 +118,54 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Checks stock availability for a given product.
+     *
+     * <p>Primarily used by the Order Service to validate order requests.</p>
+     *
+     * @param id       the product ID
+     * @param quantity the requested quantity (must be >= 1)
+     * @return a {@link ResponseEntity} containing availability information and HTTP 200 (OK)
+     */
+    @GetMapping("/{id}/stock")
+    public ResponseEntity<Map<String, Object>> checkStock(
+            @PathVariable Long id,
+            @NotNull @RequestParam @Min(1) Integer quantity
+    ) {
+        ProductResponseDto product = productService.getProductById(id);
+        boolean hasStock = productService.hasStock(id, quantity);
+
+        Map<String, Object> response = Map.of(
+                "productId", id,
+                "hasStock", hasStock,
+                "availableStock", product.getStock(),
+                "requestedQuantity", quantity
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Reduces product stock after a confirmed order is processed.
+     *
+     * <p>If insufficient stock exists, the response will include an HTTP 409 (Conflict) status.</p>
+     *
+     * @param id       the product ID
+     * @param quantity the quantity to deduct (must be >= 1)
+     * @return a {@link ResponseEntity} with success or conflict message
+     */
+    @PutMapping("/{id}/reduce-stock")
+    public ResponseEntity<Map<String, Object>> reduceStock(
+            @PathVariable Long id,
+            @NotNull @RequestParam @Min(1) Integer quantity
+    ) {
+        boolean success = productService.reduceStock(id, quantity);
+
+        if (!success) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Insufficient stock or product not found"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Stock reduced successfully"));
+    }
 }
