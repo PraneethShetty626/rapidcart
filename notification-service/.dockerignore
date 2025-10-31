@@ -1,0 +1,14 @@
+target/
+.git/
+.gitignore
+*.md
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.settings/
+.project
+.classpath

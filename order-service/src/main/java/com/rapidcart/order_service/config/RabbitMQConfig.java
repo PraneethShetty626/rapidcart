@@ -16,30 +16,34 @@ import org.springframework.context.annotation.Profile;
  * It sets up the necessary components to enable message-based communication
  * between microservices, including:
  * <ul>
- *     <li>A {@link TopicExchange} for publishing product-related events</li>
- *     <li>A durable {@link Queue} for consuming product events</li>
- *     <li>A {@link Binding} to connect the queue and exchange using a routing key</li>
- *     <li>A {@link RabbitTemplate} configured with a JSON message converter</li>
+ * <li>A {@link TopicExchange} for publishing product-related events</li>
+ * <li>A durable {@link Queue} for consuming product events</li>
+ * <li>A {@link Binding} to connect the queue and exchange using a routing
+ * key</li>
+ * <li>A {@link RabbitTemplate} configured with a JSON message converter</li>
  * </ul>
  * <p>
- * The configuration ensures that messages are serialized and deserialized using JSON,
+ * The configuration ensures that messages are serialized and deserialized using
+ * JSON,
  * enabling seamless communication between services.
  *
- * <p><b>Exchange/Queue Details:</b></p>
+ * <p>
+ * <b>Exchange/Queue Details:</b>
+ * </p>
  * <ul>
- *     <li>Exchange: {@code product.exchange}</li>
- *     <li>Queue: {@code product.events.queue}</li>
- *     <li>Routing Key: {@code product.event}</li>
+ * <li>Exchange: {@code product.exchange}</li>
+ * <li>Queue: {@code order.events.queue}</li>
+ * <li>Routing Key: {@code product.event}</li>
  * </ul>
  *
  * Example:
+ * 
  * <pre>
  * {@code
  * rabbitTemplate.convertAndSend(
- *     RabbitMQConfig.EXCHANGE_NAME,
- *     RabbitMQConfig.ROUTING_KEY,
- *     new ProductEvent("ProductCreated", product)
- * );
+ *         RabbitMQConfig.EXCHANGE_NAME,
+ *         RabbitMQConfig.ROUTING_KEY,
+ *         new ProductEvent("ProductCreated", product));
  * }
  * </pre>
  *
@@ -60,7 +64,8 @@ public class RabbitMQConfig {
     public static final String ROUTING_KEY = "order.event";
 
     /**
-     * Declares a {@link TopicExchange} that allows messages to be routed based on a pattern.
+     * Declares a {@link TopicExchange} that allows messages to be routed based on a
+     * pattern.
      *
      * @return a configured {@link TopicExchange}
      */
@@ -80,9 +85,10 @@ public class RabbitMQConfig {
     }
 
     /**
-     * Creates a {@link Binding} between the queue and exchange using the specified routing key.
+     * Creates a {@link Binding} between the queue and exchange using the specified
+     * routing key.
      *
-     * @param queue the queue to bind
+     * @param queue    the queue to bind
      * @param exchange the exchange to bind to
      * @return a configured {@link Binding}
      */
@@ -103,7 +109,8 @@ public class RabbitMQConfig {
     }
 
     /**
-     * Configures a {@link RabbitTemplate} with a JSON message converter for sending messages.
+     * Configures a {@link RabbitTemplate} with a JSON message converter for sending
+     * messages.
      *
      * @param connectionFactory the RabbitMQ {@link ConnectionFactory}
      * @return a configured {@link RabbitTemplate}

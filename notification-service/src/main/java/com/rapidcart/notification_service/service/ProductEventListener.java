@@ -10,17 +10,24 @@ import org.springframework.stereotype.Service;
  * product-related events from a RabbitMQ queue and triggering appropriate
  * notification actions based on the event type.
  *
- * <p>This listener consumes messages from the {@code product.events.queue},
+ * <p>
+ * This listener consumes messages from the {@code order.events.queue},
  * which are published by other microservices (e.g., Order Service) via a
  * {@code TopicExchange}. Upon receiving an event, it validates the event type
- * and performs notification logic accordingly.</p>
+ * and performs notification logic accordingly.
+ * </p>
  *
- * <p>Currently, it handles the {@code ORDER_CREATED} event type and logs a
+ * <p>
+ * Currently, it handles the {@code ORDER_CREATED} event type and logs a
  * notification message. In a real-world scenario, this can be extended to
  * send notifications through various channels such as email, SMS, or push
- * notifications.</p>
+ * notifications.
+ * </p>
  *
- * <p><strong>Example usage:</strong></p>
+ * <p>
+ * <strong>Example usage:</strong>
+ * </p>
+ * 
  * <pre>
  * {
  *   "eventType": "ORDER_CREATED",
@@ -42,12 +49,12 @@ import org.springframework.stereotype.Service;
 public class ProductEventListener {
 
     /**
-     * Listens for {@link ProductEvent} messages from the {@code product.events.queue}
+     * Listens for {@link ProductEvent} messages from the {@code order.events.queue}
      * and processes them according to the event type.
      *
      * @param event the {@link ProductEvent} received from RabbitMQ
      */
-    @RabbitListener(queues = "product.events.queue")
+    @RabbitListener(queues = "order.events.queue")
     public void handleProductEvent(ProductEvent event) {
         log.info("Received Product Event: {}", event);
 
@@ -70,6 +77,7 @@ public class ProductEventListener {
      */
     private void sendNotification(ProductEvent event) {
         log.info("📢 Sending notification: {} -> {}", "New Order created!", event.getData());
-        // In a real-world app, this could send an email, push notification, or Slack message.
+        // In a real-world app, this could send an email, push notification, or Slack
+        // message.
     }
 }

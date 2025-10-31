@@ -1,0 +1,142 @@
+services:
+  # 1️⃣ Database
+  postgres:
+    image: postgres:14
+    container_name: rapidcart-postgres
+    environment:
+      POSTGRES_DB: rapidcart
+      POSTGRES_USER: rapidcart
+      POSTGRES_PASSWORD: rapidcart
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rapidcart-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rapidcart"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2️⃣ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rapidcart-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - rapidcart-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 3️⃣ Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: rapidcart-product-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rapidcart
+      SPRING_DATASOURCE_USERNAME: rapidcart
+      SPRING_DATASOURCE_PASSWORD: rapidcart
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rapidcart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 4️⃣ Order Service
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: rapidcart-order-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rapidcart
+      SPRING_DATASOURCE_USERNAME: rapidcart
+      SPRING_DATASOURCE_PASSWORD: rapidcart
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    networks:
+      - rapidcart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 5️⃣ Notification Service
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: rapidcart-notification-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      SERVER_PORT: 8083
+    ports:
+      - "8083:8083"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rapidcart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  rapidcart-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
