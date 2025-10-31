@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -80,6 +81,14 @@ public class GlobalExceptionHandler {
                         (v1, v2) -> v1
                 ));
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation failed", null, fieldErrors);
+    }
+
+    /**
+     * Handles validation errors triggered by {@code @Valid} annotations in request DTOs.
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(HandlerMethodValidationException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Request Validation failed ", null, ex.getMessage());
     }
 
     /**
