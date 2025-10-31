@@ -7,6 +7,7 @@ import com.rapidcart.order_service.dto.ProductDto;
 import com.rapidcart.order_service.entity.Order;
 import com.rapidcart.order_service.exception.InsufficientStockException;
 import com.rapidcart.order_service.exception.ProductNotFoundException;
+import com.rapidcart.order_service.exception.ResourceNotFoundException;
 import com.rapidcart.order_service.repository.OrderRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,7 +139,7 @@ public class OrderService {
      */
     public OrderResponseDto getOrderById(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
         return mapToResponseDto(order);
     }
 

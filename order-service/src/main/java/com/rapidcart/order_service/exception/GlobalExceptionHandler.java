@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -239,5 +240,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AmqpException.class)
     public ResponseEntity<Map<String, Object>> handleNotificationEventException(AmqpException ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Services Error", ex.getMessage(), null);
+    }
+
+    /**
+     * Handles validation errors triggered by {@code @Valid} annotations in request DTOs.
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(HandlerMethodValidationException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Request Validation failed ", null, ex.getMessage());
     }
 }

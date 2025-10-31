@@ -7,6 +7,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * The {@code RabbitMQConfig} class defines the RabbitMQ configuration for the
@@ -45,6 +46,7 @@ import org.springframework.context.annotation.Configuration;
  * @author
  * @since 1.0
  */
+@Profile("!test")
 @Configuration
 public class RabbitMQConfig {
 
