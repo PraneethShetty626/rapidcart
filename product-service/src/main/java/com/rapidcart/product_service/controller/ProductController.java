@@ -138,7 +138,7 @@ public class ProductController {
         Map<String, Object> response = Map.of(
                 "productId", id,
                 "hasStock", hasStock,
-                "availableStock", product.getStock(),
+                "availableStock", hasStock ? product.getStock() : 0,
                 "requestedQuantity", quantity
         );
 

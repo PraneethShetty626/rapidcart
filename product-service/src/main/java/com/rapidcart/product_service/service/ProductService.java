@@ -121,7 +121,7 @@ public class ProductService {
      */
     public boolean hasStock(Long id, Integer quantity) {
         return productRepository.findById(id)
-                .map(product -> product.getStock() >= quantity)
+                .map(product -> product.getStock() >= quantity && product.getActiveStatus())
                 .orElse(false);
     }
 
