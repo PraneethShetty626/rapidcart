@@ -501,24 +501,6 @@ cd product-service
 mvn test
 ```
 
-### Test Coverage
-
-Each service includes:
-
-- **Unit Tests**: Testing individual components
-- **Integration Tests**: Testing controller endpoints with in-memory H2 database
-- **Test Configuration**: Separate `application-test.properties` for test environments
-
-### Example Test Execution
-
-```bash
-# Run tests with coverage report
-mvn clean test jacoco:report
-
-# Run only integration tests
-mvn verify -DskipUnitTests
-```
-
 ---
 
 ## 📊 Monitoring
