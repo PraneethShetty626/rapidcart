@@ -82,8 +82,8 @@ public class OrderService {
     public OrderResponseDto createOrder(OrderRequestDto orderRequestDto) {
         ProductDto product = productClient.getProduct(orderRequestDto.getProductId());
 
-        if (product == null) {
-            throw new ProductNotFoundException("Product not found");
+        if (product == null || !product.getActiveStatus()) {
+            throw new ProductNotFoundException("Product not found or unavailable");
         }
 
         if (!productClient.checkStockAndValidate(orderRequestDto.getProductId(), orderRequestDto.getQuantity())) {
