@@ -17,19 +17,42 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-
+/**
+ * GlobalExceptionHandler provides centralized exception handling for all REST controllers
+ * within the {@code com.rapidcart.order_service} package.
+ * <p>
+ * This class uses {@link RestControllerAdvice} to catch and process various exceptions
+ * that may occur during request processing, converting them into consistent and meaningful
+ * HTTP responses for the client.
+ * </p>
+ * <p>
+ * It handles both framework-level exceptions (e.g., validation, database, and messaging errors)
+ * and custom application exceptions (e.g., {@link ResourceNotFoundException},
+ * {@link ProductNotFoundException}, and {@link InsufficientStockException}).
+ * </p>
+ *
+ * <h3>Key Features:</h3>
+ * <ul>
+ *     <li>Centralized error response structure with timestamp, status, and message.</li>
+ *     <li>Graceful handling of validation, database, and messaging exceptions.</li>
+ *     <li>Improved client readability with user-friendly messages.</li>
+ * </ul>
+ *
+ * @author
+ * @version 1.0
+ * @since 2025-10
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Builds a standardized error response.
+     * Builds a standardized error response with common metadata.
      *
-     * @param status  HTTP status code to return
-     * @param error   a short error type/summary
-     * @param message a descriptive message (optional)
-     * @param details additional contextual data or validation errors (optional)
-     * @return a {@link ResponseEntity} containing the response map
+     * @param status  the HTTP status to be returned (e.g., 400, 404, 500)
+     * @param error   a short summary of the error type
+     * @param message a descriptive message explaining the error (nullable)
+     * @param details additional contextual data or field-level errors (nullable)
+     * @return a {@link ResponseEntity} containing a structured JSON response body
      */
     private ResponseEntity<Map<String, Object>> buildResponse(
             HttpStatus status,
@@ -47,7 +70,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles validation errors triggered by {@code @Valid} annotations in request DTOs.
+     * Handles validation errors thrown when a request body fails {@code @Valid} checks.
+     * <p>
+     * Typically triggered when field constraints in DTOs (e.g., {@link jakarta.validation.constraints.NotNull},
+     * {@link jakarta.validation.constraints.Size}) are violated.
+     * </p>
+     *
+     * @param ex the exception thrown by the validation framework
+     * @return a {@link ResponseEntity} containing details about invalid fields
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex) {
@@ -63,7 +93,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles validation constraint violations (e.g., {@code @Min}, {@code @Max}, etc.).
+     * Handles constraint violations triggered by validation annotations on method parameters.
+     *
+     * @param ex the {@link ConstraintViolationException} containing the violated constraints
+     * @return a {@link ResponseEntity} listing all violated constraints and messages
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Map<String, Object>> handleConstraintViolationException(ConstraintViolationException ex) {
@@ -75,7 +108,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles custom resource not found exceptions.
+     * Handles cases where a requested resource is not found in the system.
+     * <p>
+     * Typically used for entity lookups like orders or products that do not exist.
+     * </p>
+     *
+     * @param ex the custom {@link ResourceNotFoundException}
+     * @return a {@link ResponseEntity} with a 404 Not Found response
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex) {
@@ -83,7 +122,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles bad input or illegal arguments.
+     * Handles invalid or illegal arguments passed to methods or APIs.
+     *
+     * @param ex the {@link IllegalArgumentException} thrown by the application
+     * @return a {@link ResponseEntity} with a 400 Bad Request response
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
@@ -91,7 +133,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles concurrent update conflicts caused by optimistic locking.
+     * Handles concurrent modification errors due to optimistic locking failures.
+     * <p>
+     * Commonly triggered when multiple transactions attempt to update the same resource simultaneously.
+     * </p>
+     *
+     * @param ex the {@link OptimisticLockException}
+     * @return a {@link ResponseEntity} with a 409 Conflict response
      */
     @ExceptionHandler(OptimisticLockException.class)
     public ResponseEntity<Map<String, Object>> handleOptimisticLockException(OptimisticLockException ex) {
@@ -104,7 +152,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles database constraint violations (e.g., unique constraint, foreign key violation).
+     * Handles database-level constraint violations, such as unique or foreign key violations.
+     *
+     * @param ex the {@link DataIntegrityViolationException} thrown by the database layer
+     * @return a {@link ResponseEntity} describing the violated database constraint
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
@@ -123,11 +174,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Extracts a concise constraint message from a raw SQL exception message.
-     * <p>Supports PostgreSQL and MySQL error message formats.</p>
+     * Extracts a concise, user-friendly message from raw SQL exception details.
+     * <p>
+     * Supports PostgreSQL and MySQL-style error formats.
+     * </p>
      *
-     * @param detail the raw database error message
-     * @return a cleaner, user-friendly constraint message
+     * @param detail the raw database exception message
+     * @return a simplified version of the constraint violation message
      */
     private String extractConstraintDetail(String detail) {
         if (detail == null) return null;
@@ -145,26 +198,46 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles all unexpected exceptions that do not have a specific handler.
+     * Handles unexpected or unhandled exceptions within the application.
+     *
+     * @param ex the unexpected {@link Exception}
+     * @return a generic 500 Internal Server Error response
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", ex.getMessage(), null);
     }
 
+    /**
+     * Handles cases where a requested product cannot be found.
+     *
+     * @param ex the {@link ProductNotFoundException} indicating the missing product
+     * @return a {@link ResponseEntity} with a 404 Not Found status
+     */
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleProductNotFoundException(ProductNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, "Product not found", ex.getMessage(), null);
     }
 
+    /**
+     * Handles scenarios where the requested product quantity exceeds available stock.
+     *
+     * @param ex the {@link InsufficientStockException} indicating insufficient stock
+     * @return a {@link ResponseEntity} with a 400 Bad Request response
+     */
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<Map<String, Object>> handleInsufficientStockException(InsufficientStockException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Insufficient stock", ex.getMessage(), null);
     }
 
+    /**
+     * Handles failures in inter-service communication via message brokers (e.g., RabbitMQ).
+     *
+     * @param ex the {@link AmqpException} representing a messaging or broker error
+     * @return a {@link ResponseEntity} with a 500 Internal Server Error response
+     */
     @ExceptionHandler(AmqpException.class)
     public ResponseEntity<Map<String, Object>> handleNotificationEventException(AmqpException ex) {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Services Error", ex.getMessage(), null);
     }
-
 }
