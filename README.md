@@ -408,7 +408,7 @@ curl -X POST http://localhost:8081/api/products \
     "sku": "LAP-001",
     "description": "High-performance laptop",
     "price": 999.99,
-    "stockQuantity": 50
+    "stock": 50
   }'
 ```
 
